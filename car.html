@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AURELIA — Fiche modèle</title>
+<link href="https://api.fontshare.com/v2/css?f[]=cabinet-grotesk@300,400,500,700&f[]=jetbrains-mono@400,500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="style.css">
+<script src="data.js"></script><script src="photos.js"></script><script src="common.js"></script>
+</head>
+<body class="bg-[#050505] text-white">
+<div id="nav"></div>
+<main class="pt-24 pb-8 bg-[#050505] min-h-screen"><div id="detail"></div></main>
+<div id="footer"></div>
+
+<script>
+  const VIEWS = ["main", "front", "side", "rear"];
+  const id = new URLSearchParams(location.search).get("id");
+  const car = getCar(id) || getCars()[0];
+  let cur = "main";
+  const $ = (i) => document.getElementById(i);
+
+  const stat = (v, u, l, ic) => `<div class="border border-neutral-900 bg-[#0c0c0c] p-5 hover:border-neutral-700 transition-colors">
+      <div class="w-9 h-9 rounded-full bg-[#B39D82]/10 flex items-center justify-center text-[#B39D82]">${ic}</div>
+      <p class="font-display text-3xl mt-4 leading-none">${v}<span class="text-base text-neutral-500 ml-1">${u}</span></p>
+      <p class="text-[10px] tracking-[0.2em] uppercase font-mono text-neutral-500 mt-2">${l}</p></div>`;
+
+  const placeholder = (key) => `<div class="absolute inset-0 flex flex-col items-center justify-center gap-3 text-center px-8 text-neutral-500">
+      ${brandLogo(car.brand, "h-12 w-12")}<p class="overline">${t("ph.none")}</p>
+      <p class="text-xs">${t("ph.hint")} <code class="font-mono">${esc(Photos.hint(car, key))}</code></p></div>`;
+
+  async function showView(key) {
+    cur = key;
+    document.querySelectorAll("[data-view]").forEach((b) => {
+      const on = b.dataset.view === key;
+      b.className = "px-3 py-1.5 text-[10px] tracking-[0.2em] uppercase font-mono backdrop-blur-md transition-all " + (on ? "bg-white text-black" : "bg-black/40 text-neutral-300 border border-white/10 hover:bg-black/60");
+    });
+    const box = $("viewer-inner"), cr = $("credit");
+    box.innerHTML = `<div class="absolute inset-0 flex items-center justify-center overline">${t("ph.loading")}</div>`; cr.innerHTML = "";
+    const p = await Photos.get(car, key);
+    if (cur !== key) return;
+    if (!p) { box.innerHTML = placeholder(key); return; }
+    box.innerHTML = `<img src="${esc(p.url)}" alt="${esc(car.brand + " " + car.model)}" class="absolute inset-0 w-full h-full object-cover" style="animation:carReveal .8s cubic-bezier(.22,1,.36,1) both">`;
+    if (p.credit) cr.innerHTML = `${t("ph.credit")} : ${p.link ? `<a href="${esc(p.link)}" target="_blank" rel="noopener" class="underline">${esc(p.credit)}</a>` : esc(p.credit)}`;
+  }
+  const next = () => showView(VIEWS[(VIEWS.indexOf(cur) + 1) % VIEWS.length]);
+
+  function render() {
+    document.title = `AURELIA — ${car.brand} ${car.model}`;
+    const others = getCars().filter((c) => c.id !== car.id && c.brand === car.brand).slice(0, 3);
+    $("detail").innerHTML = `
+    <section class="container-custom mt-8 grid grid-cols-1 lg:grid-cols-12 gap-12">
+      <div class="lg:col-span-4 lg:sticky lg:top-32 lg:self-start order-2 lg:order-1">
+        <span class="inline-block px-3 py-1 bg-white/5 border border-white/10 rounded-full text-[10px] tracking-[0.2em] uppercase font-mono text-[#B39D82]">${t("type." + car.type)}</span>
+        <div class="flex items-center gap-3 mt-6">${brandLogo(car.brand, "h-7 w-7")}<a href="models.html?brand=${encodeURIComponent(car.brand)}" class="overline hover:text-white no-underline">${esc(car.brand)}</a></div>
+        <h1 class="font-display text-5xl sm:text-6xl lg:text-7xl tracking-tighter font-light mt-3 leading-[0.95]">${esc(car.model)}</h1>
+        <p class="text-neutral-300 mt-6 leading-relaxed text-sm">${esc((car.desc && car.desc[LANG]) || "")}</p>
+        <p class="overline mt-8">${t("d.from")}*</p>
+        <p class="font-display text-3xl mt-2">${fmtPrice(car.price)}</p>
+        <div class="flex flex-wrap gap-3 mt-8">
+          <a href="configure.html?id=${encodeURIComponent(car.id)}" class="btn-primary">${t("d.configure")} →</a>
+          <button id="rot" class="w-12 h-12 border border-neutral-800 hover:border-white text-white bg-transparent cursor-pointer" aria-label="Next view">↻</button>
+        </div>
+        <a href="test-drive.html?car=${encodeURIComponent(car.id)}" class="btn-ghost mt-6">${t("d.book")} →</a>
+      </div>
+
+      <div class="lg:col-span-5 order-1 lg:order-2">
+        <div id="viewer" class="studio relative aspect-[4/3] overflow-hidden cursor-pointer select-none">
+          <div id="viewer-inner"></div>
+          <div class="on-image absolute bottom-5 left-1/2 -translate-x-1/2 flex gap-2 z-10">${VIEWS.map((v) => `<button data-view="${v}">${t("v." + v)}</button>`).join("")}</div>
+        </div>
+        <p id="credit" class="text-[11px] text-neutral-500 mt-3"></p>
+      </div>
+
+      <div class="lg:col-span-3 order-3 grid grid-cols-2 gap-3 content-start">
+        ${stat(car.top, "km/h", t("d.top"), "≫")}
+        ${stat(car.hp, "HP", t("d.power"), "◉")}
+        ${car.range ? stat(car.range, "km", t("d.range"), "▮") : stat("∞", "", "ICE", "▮")}
+        ${stat(car.acc, "s", t("d.acc"), "◔")}
+        <a href="tour.html?car=${encodeURIComponent(car.id)}" class="col-span-2 relative aspect-[16/10] overflow-hidden bg-[#0c0c0c] border border-neutral-900 group no-underline">
+          <img data-car="${esc(car.id)}" data-view="main" alt="" class="absolute inset-0 w-full h-full object-cover opacity-0 transition-all duration-1000 group-hover:scale-105">
+          <div class="on-image absolute inset-0 bg-gradient-to-t from-black/75 via-black/10 to-transparent flex flex-col justify-end p-5 text-white">
+            <p class="font-display text-xl">${t("d.tour")} →</p><p class="text-xs text-neutral-300 mt-1">${t("d.tour.d")}</p></div>
+        </a>
+      </div>
+    </section>
+
+    <section class="container-custom mt-24">
+      <p class="overline mb-6">${t("d.specs")}</p>
+      <div class="border border-neutral-900 bg-[#0c0c0c] grid grid-cols-2 md:grid-cols-4">
+        ${[[t("f.brand"), car.brand], [t("f.type"), t("type." + car.type)], [t("d.power"), car.hp + " HP"], [t("d.top"), car.top + " km/h"], [t("d.acc"), car.acc + " s"], [t("d.range"), car.range ? car.range + " km" : "—"], [t("d.from"), fmtPrice(car.price)], [t("td.car"), car.brand + " " + car.model]]
+          .map(([k, v]) => `<div class="p-5 border-b border-r border-neutral-900"><p class="overline">${esc(k)}</p><p class="mt-2 font-display text-lg">${esc(v)}</p></div>`).join("")}
+      </div>
+    </section>
+
+    ${others.length ? `<section class="container-custom mt-24"><p class="overline mb-6">${t("d.similar")}</p><div class="grid grid-cols-1 md:grid-cols-3 gap-4">${others.map(carCard).join("")}</div></section>` : ""}`;
+
+    $("viewer").addEventListener("click", (e) => { if (!e.target.closest("[data-view]")) next(); });
+    $("rot").addEventListener("click", next);
+    document.querySelectorAll("[data-view]").forEach((b) => b.addEventListener("click", (e) => { e.stopPropagation(); showView(b.dataset.view); }));
+    showView(cur); hydratePhotos();
+  }
+  render(); document.addEventListener("langchange", render);
+</script>
+</body>
+</html>

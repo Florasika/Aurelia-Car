@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AURELIA — Modèles</title>
+<link href="https://api.fontshare.com/v2/css?f[]=cabinet-grotesk@300,400,500,700&f[]=jetbrains-mono@400,500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="style.css">
+<script src="data.js"></script><script src="photos.js"></script><script src="common.js"></script>
+</head>
+<body class="bg-[#050505] text-white">
+<div id="nav"></div>
+<main class="pt-32 pb-8 bg-[#050505] min-h-screen">
+  <div class="container-custom">
+    <p class="overline">/ collection</p>
+    <div class="flex items-end justify-between gap-6 flex-wrap mt-4">
+      <h1 class="font-display text-5xl sm:text-6xl lg:text-7xl tracking-tighter font-light" data-i18n="models.title"></h1>
+      <a href="brands.html" class="btn-ghost"><span data-i18n="f.brandslink"></span> →</a>
+    </div>
+    <p class="text-neutral-400 mt-4 max-w-xl" data-i18n="models.sub"></p>
+
+    <div class="mt-12 grid grid-cols-1 md:grid-cols-12 gap-8 pb-8 border-b border-neutral-900">
+      <div class="md:col-span-4 space-y-5">
+        <div><p class="overline mb-2" data-i18n="f.brand"></p><select id="brand" class="field"></select></div>
+        <input id="q" class="field" data-i18n-ph="f.search" autocomplete="off">
+      </div>
+      <div class="md:col-span-4">
+        <p class="overline mb-3" data-i18n="f.type"></p><div id="type-chips" class="flex flex-wrap gap-2"></div>
+        <p class="overline mt-6 mb-2" data-i18n="f.sort"></p><select id="sort" class="field"></select>
+      </div>
+      <div class="md:col-span-4">
+        <div class="flex items-center justify-between mb-3"><p class="overline" data-i18n="f.price"></p><p id="price-label" class="font-mono text-sm"></p></div>
+        <input id="price" type="range" min="20000" max="500000" step="5000" value="500000">
+        <button id="reset" class="overline mt-4 hover:text-white bg-transparent border-0 cursor-pointer">→ <span data-i18n="f.reset"></span></button>
+        <p class="overline mt-6"><span id="count"></span> <span data-i18n="models.count"></span></p>
+      </div>
+    </div>
+
+    <div id="grid" class="mt-12 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+    <p id="none" class="hidden text-neutral-500 text-center py-20"></p>
+  </div>
+</main>
+<div id="footer"></div>
+
+<script>
+  const TYPES = ["all", "sport", "suv", "electric", "sedan"];
+  const SORTS = ["default", "asc", "desc", "power"];
+  const fold = (s) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+  const state = { brand: new URLSearchParams(location.search).get("brand") || "all", type: "all", max: 500000, q: "", sort: "default" };
+  const $ = (id) => document.getElementById(id);
+
+  function render() {
+    const cars = getCars();
+    const brands = [...new Set([...cars.map((c) => c.brand), ...(state.brand !== "all" ? [state.brand] : [])])].sort((a, b) => a.localeCompare(b, "fr"));
+    $("brand").innerHTML = `<option value="all">${t("f.all")}</option>` + brands.map((b) => `<option ${state.brand === b ? "selected" : ""}>${esc(b)}</option>`).join("");
+    $("type-chips").innerHTML = TYPES.map((x) => `<button class="chip ${state.type === x ? "active" : ""}" data-type="${x}">${t("type." + x)}</button>`).join("");
+    $("sort").innerHTML = SORTS.map((s) => `<option value="${s}" ${state.sort === s ? "selected" : ""}>${t("sort." + s)}</option>`).join("");
+    $("price-label").textContent = fmtPrice(state.max);
+
+    let list = cars.filter((c) => (state.brand === "all" || c.brand === state.brand) && (state.type === "all" || c.type === state.type) && c.price <= state.max && fold(c.brand + " " + c.model).includes(fold(state.q)));
+    if (state.sort === "asc") list.sort((a, b) => a.price - b.price);
+    if (state.sort === "desc") list.sort((a, b) => b.price - a.price);
+    if (state.sort === "power") list.sort((a, b) => b.hp - a.hp);
+    $("count").textContent = list.length;
+    $("grid").innerHTML = list.map(carCard).join("");
+    const none = $("none");
+    none.classList.toggle("hidden", list.length > 0);
+    none.textContent = state.brand !== "all" && !cars.some((c) => c.brand === state.brand) ? t("f.nobrand") : t("f.none");
+    hydratePhotos();
+  }
+
+  document.addEventListener("click", (e) => { const ty = e.target.closest("[data-type]"); if (ty) { state.type = ty.dataset.type; render(); } });
+  $("brand").addEventListener("change", (e) => { state.brand = e.target.value; render(); });
+  $("sort").addEventListener("change", (e) => { state.sort = e.target.value; render(); });
+  $("q").addEventListener("input", (e) => { state.q = e.target.value; render(); });
+  $("price").addEventListener("input", (e) => { state.max = +e.target.value; render(); });
+  $("reset").addEventListener("click", () => { Object.assign(state, { brand: "all", type: "all", max: 500000, q: "", sort: "default" }); $("price").value = 500000; $("q").value = ""; render(); });
+  render(); document.addEventListener("langchange", render);
+</script>
+</body>
+</html>

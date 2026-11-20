@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AURELIA — Visite 360°</title>
+<link href="https://api.fontshare.com/v2/css?f[]=cabinet-grotesk@300,400,500,700&f[]=jetbrains-mono@400,500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="style.css">
+<script src="data.js"></script><script src="photos.js"></script><script src="common.js"></script>
+</head>
+<body class="bg-[#050505] text-white">
+<div id="nav"></div>
+<main class="pt-32 pb-8 bg-[#050505] min-h-screen">
+  <div class="container-custom">
+    <p class="overline">/ <span data-i18n="tour.title"></span></p>
+    <div class="flex items-end justify-between gap-6 flex-wrap mt-4">
+      <h1 class="font-display text-5xl sm:text-6xl lg:text-7xl tracking-tighter font-light" data-i18n="tour.title"></h1>
+      <div><p class="overline mb-2" data-i18n="td.car"></p><select id="car-select" class="bg-[#111] border border-neutral-800 px-4 py-2 text-sm text-white min-w-[260px] max-w-[360px]"></select></div>
+    </div>
+    <p class="text-neutral-400 mt-3" data-i18n="tour.sub"></p>
+    <div id="pills" class="mt-8 flex flex-wrap gap-2"></div>
+
+    <div class="mt-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
+      <div class="lg:col-span-8">
+        <div id="viewer" class="studio relative aspect-[16/10] border border-neutral-900 overflow-hidden cursor-grab select-none">
+          <div id="stage" class="absolute inset-0"></div>
+          <button id="prev" aria-label="←" class="on-image absolute left-4 top-1/2 -translate-y-1/2 w-12 h-12 bg-black/50 backdrop-blur-md border border-white/15 text-white hover:bg-black/80 z-10 text-xl cursor-pointer">‹</button>
+          <button id="next" aria-label="→" class="on-image absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 bg-black/50 backdrop-blur-md border border-white/15 text-white hover:bg-black/80 z-10 text-xl cursor-pointer">›</button>
+          <div id="badge-l" class="on-image absolute top-4 left-4 px-3 py-1.5 bg-black/60 backdrop-blur-md border border-white/10 font-mono text-[10px] tracking-[0.2em] uppercase text-white z-10"></div>
+          <div id="badge-r" class="on-image absolute top-4 right-4 px-3 py-1.5 bg-black/60 backdrop-blur-md border border-white/10 font-mono text-[10px] tracking-[0.2em] uppercase text-white z-10"></div>
+        </div>
+        <p id="credit" class="text-[11px] text-neutral-500 mt-3"></p>
+      </div>
+
+      <div class="lg:col-span-4 space-y-3">
+        <div class="border border-neutral-900 bg-[#0c0c0c] p-6">
+          <p class="overline" data-i18n="tour.dash"></p>
+          <h3 id="car-name" class="font-display text-2xl mt-2"></h3>
+          <div class="mt-6 grid grid-cols-2 gap-3">
+            <div class="border border-neutral-900 bg-[#080808] p-4"><p class="overline">Speed</p>
+              <p class="font-display text-3xl mt-2"><span id="speed">0</span><span class="text-xs text-neutral-500 ml-1">km/h</span></p>
+              <div class="mt-2 h-0.5 bg-neutral-900"><div id="speed-bar" class="h-full bg-[#E50000]" style="width:0"></div></div></div>
+            <div class="border border-neutral-900 bg-[#080808] p-4"><p id="rpm-label" class="overline">RPM</p>
+              <p class="font-display text-3xl mt-2"><span id="rpm">0</span></p>
+              <div class="mt-2 h-0.5 bg-neutral-900"><div id="rpm-bar" class="h-full bg-[#E50000]" style="width:0"></div></div></div>
+          </div>
+          <button id="engine" class="mt-5 w-full py-3 text-xs tracking-[0.2em] uppercase bg-[#E50000] text-white hover:bg-[#FF1A1A] border-0 cursor-pointer"></button>
+        </div>
+        <div id="specs" class="grid grid-cols-2 gap-3"></div>
+        <a id="cfg-link" class="btn-secondary w-full" href="#"></a>
+      </div>
+    </div>
+    <div id="thumbs" class="mt-6 grid grid-cols-3 md:grid-cols-6 gap-2"></div>
+  </div>
+</main>
+<div id="footer"></div>
+
+<script>
+  /* ordre de la visite : le même modèle sous tous les angles */
+  const KEYS = ["front", "side", "rear", "top", "interior", "engine"];
+  const LABEL = { front: "Extérieur", side: "Profil", rear: "Arrière", top: "Vue haute", interior: "Intérieur", engine: "Moteur" };
+  const LABEL_EN = { front: "Exterior", side: "Profile", rear: "Back", top: "Top", interior: "Interior", engine: "Engine" };
+  const label = (k) => (LANG === "fr" ? LABEL : LABEL_EN)[k];
+  const cars = getCars();
+  const wanted = new URLSearchParams(location.search).get("car");
+  let car = getCar(wanted) || cars[0], viewKey = "front", running = false;
+  const $ = (id) => document.getElementById(id);
+
+  const placeholder = (k) => `<div class="absolute inset-0 flex flex-col items-center justify-center gap-3 text-center px-8 text-neutral-500">
+    ${brandLogo(car.brand, "h-12 w-12")}<p class="overline">${esc(label(k))} — ${t("ph.none")}</p><p class="text-xs">${t("ph.hint")} <code class="font-mono">${esc(Photos.hint(car, k))}</code></p></div>`;
+
+  function renderStatic() {
+    $("car-select").innerHTML = carOptions(cars, car.id);
+    $("car-name").textContent = `${car.brand} ${car.model}`;
+    $("pills").innerHTML = KEYS.map((k) => `<button data-key="${k}" class="chip ${viewKey === k ? "active" : ""}">${label(k)}</button>`).join("");
+    $("thumbs").innerHTML = KEYS.map((k) => `<button data-key="${k}" class="thumb studio relative aspect-[4/3] overflow-hidden border-2 p-0 cursor-pointer transition-all ${viewKey === k ? "border-[#E50000]" : "border-transparent opacity-60 hover:opacity-100"}">
+      <img data-thumb="${k}" alt="" class="absolute inset-0 w-full h-full object-cover opacity-0 transition-opacity duration-500"><span class="on-image absolute bottom-1 left-1 px-1.5 py-0.5 bg-black/70 text-white text-[9px] tracking-[0.15em] uppercase font-mono">${label(k)}</span></button>`).join("");
+    $("specs").innerHTML = [["Power", car.hp + " HP"], ["Top", car.top + " km/h"], ["0–100", car.acc + " s"], [car.range ? "Range" : "ICE", car.range ? car.range + " km" : "∞"]]
+      .map(([l, v]) => `<div class="border border-neutral-900 bg-[#0c0c0c] p-4"><p class="overline">${l}</p><p class="font-display text-lg mt-1">${v}</p></div>`).join("");
+    $("cfg-link").href = "configure.html?id=" + encodeURIComponent(car.id); $("cfg-link").textContent = t("d.configure") + " →";
+    $("engine").textContent = running ? t("tour.stop") : t("tour.start");
+    $("rpm-label").textContent = car.type === "electric" ? "kW" : "RPM";
+    KEYS.forEach((k) => Photos.get(car, k).then((p) => {                       // miniatures
+      const im = document.querySelector(`img[data-thumb="${k}"]`); if (!im) return;
+      if (p) { im.onload = () => im.classList.remove("opacity-0"); im.src = p.url; }
+    }));
+  }
+
+  async function showView() {
+    const k = viewKey, i = KEYS.indexOf(k), st = $("stage");
+    $("badge-l").textContent = `${car.brand} · ${label(k)}`; $("badge-r").textContent = `${i + 1} / ${KEYS.length}`;
+    document.querySelectorAll("[data-key]").forEach((b) => {
+      const on = b.dataset.key === k;
+      if (b.classList.contains("chip")) b.classList.toggle("active", on);
+      else { b.classList.toggle("border-[#E50000]", on); b.classList.toggle("border-transparent", !on); b.classList.toggle("opacity-60", !on); }
+    });
+    $("credit").innerHTML = "";
+    st.innerHTML = `<div class="absolute inset-0 flex items-center justify-center overline">${t("ph.loading")}</div>`;
+    const p = await Photos.get(car, k);
+    if (k !== viewKey) return;
+    if (!p) { st.innerHTML = placeholder(k); return; }
+    st.innerHTML = `<img src="${esc(p.url)}" alt="" draggable="false" class="absolute inset-0 w-full h-full object-cover pointer-events-none" style="animation:carReveal .7s cubic-bezier(.22,1,.36,1) both">`;
+    if (p.credit) $("credit").innerHTML = `${t("ph.credit")} : ${p.link ? `<a class="underline" target="_blank" rel="noopener" href="${esc(p.link)}">${esc(p.credit)}</a>` : esc(p.credit)}`;
+  }
+  const cycle = (d) => { viewKey = KEYS[(KEYS.indexOf(viewKey) + d + KEYS.length) % KEYS.length]; showView(); };
+
+  document.addEventListener("click", (e) => { const b = e.target.closest("[data-key]"); if (b) { viewKey = b.dataset.key; showView(); } });
+  $("prev").addEventListener("click", () => cycle(-1)); $("next").addEventListener("click", () => cycle(1));
+  document.addEventListener("keydown", (e) => { if (e.target.closest("select,input,textarea")) return; if (e.key === "ArrowLeft") cycle(-1); if (e.key === "ArrowRight") cycle(1); });
+
+  /* glisser pour tourner */
+  let drag = { x: 0, on: false };
+  const vw = $("viewer");
+  const start = (x) => (drag = { x, on: true }), end = () => (drag.on = false);
+  const move = (x) => { if (!drag.on) return; const dx = x - drag.x; if (Math.abs(dx) > 40) { cycle(dx > 0 ? -1 : 1); drag.x = x; } };
+  vw.addEventListener("mousedown", (e) => start(e.clientX)); window.addEventListener("mousemove", (e) => move(e.clientX)); window.addEventListener("mouseup", end);
+  vw.addEventListener("touchstart", (e) => start(e.touches[0].clientX), { passive: true });
+  vw.addEventListener("touchmove", (e) => move(e.touches[0].clientX), { passive: true }); vw.addEventListener("touchend", end);
+
+  /* son : V8 grave pour les thermiques, sifflement pour les électriques */
+  let ctx, nodes, raf;
+  function startEngine() {
+    if (running) return;
+    const ev = car.type === "electric";
+    ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const o1 = ctx.createOscillator(), o2 = ctx.createOscillator(), lfo = ctx.createOscillator();
+    o1.type = o2.type = ev ? "sine" : "sawtooth"; lfo.type = "sine"; lfo.frequency.value = ev ? 2 : 6;
+    const lp = ctx.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = ev ? 3200 : 320; lp.Q.value = ev ? 1 : 8;
+    const gain = ctx.createGain(); gain.gain.value = 0;
+    const lfoGain = ctx.createGain(); lfoGain.gain.value = ev ? 80 : 40;
+    lfo.connect(lfoGain).connect(lp.frequency);
+    o1.connect(lp); o2.connect(lp); lp.connect(gain).connect(ctx.destination);
+    o1.start(); o2.start(); lfo.start();
+    gain.gain.linearRampToValueAtTime(ev ? 0.07 : 0.18, ctx.currentTime + 0.8);
+    nodes = { o1, o2, lfo, gain }; running = true; $("engine").textContent = t("tour.stop");
+    let r = 800, s = 0;
+    const loop = () => {
+      const target = 4500 + Math.sin(Date.now() / 600) * 1500;
+      r += (target - r) * 0.04; s += ((r / 8000) * car.top - s) * 0.06;
+      $("rpm").textContent = ev ? Math.round((r / 8000) * car.hp * 0.735) : Math.round(r);
+      $("speed").textContent = Math.round(Math.max(0, s));
+      $("rpm-bar").style.width = Math.min(100, r / 80) + "%"; $("speed-bar").style.width = Math.min(100, (s / car.top) * 100) + "%";
+      const f = ev ? 300 + (r / 8000) * 1500 : 40 + (r / 8000) * 180;
+      o1.frequency.setTargetAtTime(f, ctx.currentTime, 0.05); o2.frequency.setTargetAtTime(f * (ev ? 2.01 : 1.04), ctx.currentTime, 0.05);
+      raf = requestAnimationFrame(loop);
+    };
+    loop();
+  }
+  function stopEngine() {
+    if (!running) return;
+    cancelAnimationFrame(raf);
+    const { o1, o2, lfo, gain } = nodes, c = ctx;
+    gain.gain.linearRampToValueAtTime(0, c.currentTime + 0.6);
+    setTimeout(() => { try { o1.stop(); o2.stop(); lfo.stop(); c.close(); } catch {} }, 700);
+    running = false; ["rpm", "speed"].forEach((k) => ($(k).textContent = 0)); $("rpm-bar").style.width = $("speed-bar").style.width = "0";
+    $("engine").textContent = t("tour.start");
+  }
+  $("engine").addEventListener("click", () => (running ? stopEngine() : startEngine()));
+  $("car-select").addEventListener("change", (e) => { stopEngine(); car = getCar(e.target.value); renderStatic(); showView(); history.replaceState(null, "", "?car=" + encodeURIComponent(car.id)); });
+  window.addEventListener("pagehide", stopEngine);
+
+  renderStatic(); showView();
+  document.addEventListener("langchange", () => { renderStatic(); showView(); });
+</script>
+</body>
+</html>

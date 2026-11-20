@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AURELIA — Marques</title>
+<link href="https://api.fontshare.com/v2/css?f[]=cabinet-grotesk@300,400,500,700&f[]=jetbrains-mono@400,500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="style.css">
+<script src="data.js"></script><script src="photos.js"></script><script src="common.js"></script>
+</head>
+<body class="bg-[#050505] text-white">
+<div id="nav"></div>
+<main class="pt-32 pb-8 bg-[#050505] min-h-screen">
+  <div class="container-custom">
+    <p class="overline">/ brands</p>
+    <h1 class="font-display text-5xl sm:text-6xl lg:text-7xl tracking-tighter font-light mt-4" data-i18n="brands.title"></h1>
+    <p class="text-neutral-400 mt-4 max-w-xl" data-i18n="brands.sub"></p>
+
+    <div class="mt-12 flex flex-wrap items-end gap-6 pb-8 border-b border-neutral-900">
+      <div class="flex-1 min-w-[240px]"><input id="q" class="field" data-i18n-ph="brands.search" autocomplete="off"></div>
+      <select id="country" class="field !w-auto min-w-[200px]"></select>
+      <p class="overline"><span id="count"></span> <span data-i18n="brands.count"></span></p>
+    </div>
+
+    <div id="grid" class="mt-10 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3"></div>
+  </div>
+</main>
+<div id="footer"></div>
+<script>
+  const state = { q: "", country: "" };
+  const $ = (id) => document.getElementById(id);
+  const fold = (s) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+
+  function render() {
+    const counts = {};
+    getCars().forEach((c) => { const k = c.brand.toLowerCase(); counts[k] = (counts[k] || 0) + 1; });
+    const countries = [...new Set(BRANDS.map((b) => b.country))].sort((a, b) => countryName(a).localeCompare(countryName(b), LANG));
+    const sel = $("country");
+    sel.innerHTML = `<option value="">${t("brands.country")}</option>` + countries.map((c) => `<option value="${c}" ${state.country === c ? "selected" : ""}>${esc(countryName(c))}</option>`).join("");
+    const list = BRANDS.filter((b) => (!state.country || b.country === state.country) && fold(b.name).includes(fold(state.q)));
+    $("count").textContent = list.length;
+    $("grid").innerHTML = list.map((b) => {
+      const n = counts[b.name.toLowerCase()] || 0;
+      return `<a href="models.html?brand=${encodeURIComponent(b.name)}" class="group flex flex-col items-center justify-between gap-4 p-6 min-h-[170px] border border-neutral-900 bg-[#0c0c0c] hover:border-[#E50000] hover:-translate-y-1 transition-all duration-300 no-underline text-white text-center">
+        ${brandLogo(b.name, "h-12 w-12")}
+        <div><p class="font-display text-lg">${esc(b.name)}</p><p class="overline mt-1">${esc(countryName(b.country))}</p></div>
+        <p class="font-mono text-[10px] tracking-[0.15em] uppercase ${n ? "text-[#E50000]" : "text-neutral-600"}">${n} ${t("brands.models")}</p></a>`;
+    }).join("");
+  }
+  $("q").addEventListener("input", (e) => { state.q = e.target.value; render(); });
+  $("country").addEventListener("change", (e) => { state.country = e.target.value; render(); });
+  render(); document.addEventListener("langchange", render);
+</script>
+</body>
+</html>

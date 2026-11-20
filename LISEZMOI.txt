@@ -1,0 +1,14 @@
+AURELIA — site vitrine auto en HTML / CSS / JS pur
+Ouvrir index.html dans le navigateur (internet requis : polices, Tailwind CDN, logos, photos en ligne).
+Pour le configurateur (recoloration) avec vos photos locales : python3 -m http.server dans ce dossier.
+
+PAGES : index · models · brands (toutes les marques) · car · configure · tour (360°) · test-drive · services · contact · admin
+DONNEES : data.js (marques, voitures démo, options, traductions) — commandes/essais/messages dans le localStorage.
+ADMIN : /admin.html, code aurelia-admin-2026 (protection côté navigateur uniquement, démo). Ajout de modèles, export JSON, vidage du cache photos.
+
+PHOTOS (mode mixte), par ordre de priorité :
+ 1. URL saisie dans l'admin pour le modèle
+ 2. vos fichiers dans photos/<marque>-<modele>/ (voir photos/LISEZMOI.txt)
+ 3. recherche automatique sur Wikimedia Commons (même modèle, vue demandée) ; sinon un emplacement vide indique le fichier attendu — jamais une photo d'un autre modèle.
+COULEUR : photo de la couleur si vous l'avez fournie, sinon recoloration automatique de la carrosserie (impossible sur voiture blanche/noire/grise).
+Pas de connexion/inscription (nécessiterait un serveur).

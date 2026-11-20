@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>AURELIA — Admin</title>
+<link href="https://api.fontshare.com/v2/css?f[]=cabinet-grotesk@300,400,500,700&f[]=jetbrains-mono@400,500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="style.css">
+<script src="data.js"></script><script src="photos.js"></script><script src="common.js"></script>
+</head>
+<body class="bg-[#050505] text-white">
+<div id="nav"></div>
+
+<!-- Accès par code (démo : protection côté navigateur uniquement) -->
+<main id="gate" class="min-h-screen pt-32 pb-32 flex items-center justify-center bg-[#050505]">
+  <form id="gate-form" class="w-full max-w-sm border border-neutral-900 bg-[#0c0c0c] p-10">
+    <p class="text-[#B39D82] text-2xl">🔒</p>
+    <p class="overline mt-4">/ admin</p>
+    <h1 class="font-display text-3xl tracking-tighter mt-2">Access restricted</h1>
+    <input id="code" type="password" required autofocus class="field mt-6" placeholder="Admin code">
+    <button class="btn-primary w-full mt-8">Unlock</button>
+  </form>
+</main>
+
+<main id="panel" class="hidden pt-28 pb-24 bg-[#050505] min-h-screen">
+  <div class="container-custom">
+    <p class="overline">/ admin</p>
+    <h1 class="font-display text-5xl tracking-tighter font-light mt-3" data-i18n="ad.title"></h1>
+    <div id="tabs" class="mt-10 flex gap-1 border-b border-neutral-900 overflow-x-auto"></div>
+    <div id="content" class="mt-10"></div>
+  </div>
+</main>
+
+<div id="modal" class="modal">
+  <form id="add-form" class="modal-card !max-w-2xl">
+    <div class="flex justify-between items-center mb-6"><h3 class="font-display text-2xl" data-i18n="ad.add"></h3><button type="button" id="close" class="bg-transparent border-0 text-xl cursor-pointer text-neutral-400">✕</button></div>
+    <div class="grid grid-cols-2 gap-4">
+      <input name="brand" required list="brand-list" placeholder="brand (toutes les marques)" class="field"><datalist id="brand-list"></datalist>
+      <input name="model" required placeholder="model" class="field">
+      <select name="type" class="field"><option>sport</option><option>suv</option><option>electric</option><option>sedan</option></select>
+      <input name="price" type="number" required placeholder="price (€)" value="50000" class="field">
+      <input name="hp" type="number" placeholder="hp" value="400" class="field">
+      <input name="top" type="number" placeholder="top speed" value="250" class="field">
+      <input name="acc" type="number" step="0.1" placeholder="0–100 (s)" value="4.5" class="field">
+      <input name="range" type="number" placeholder="autonomie km (vide = thermique)" class="field">
+      <input name="p_main" placeholder="photo principale (URL, facultatif — sinon dossier photos/ ou recherche auto)" class="field col-span-2">
+      <input name="p_front" placeholder="photo avant (URL, facultatif)" class="field">
+      <input name="p_side" placeholder="photo profil (URL, facultatif)" class="field">
+      <input name="p_rear" placeholder="photo arrière (URL, facultatif)" class="field">
+      <input name="p_top" placeholder="vue de haut (URL, facultatif)" class="field">
+      <input name="p_interior" placeholder="intérieur (URL, facultatif)" class="field">
+      <input name="p_engine" placeholder="moteur (URL, facultatif)" class="field">
+      <label class="col-span-2 flex items-center gap-3 text-sm text-neutral-400"><input type="checkbox" name="featured" class="accent-[#E50000]"> Mettre en avant sur l'accueil</label>
+      <input name="tag_fr" placeholder="accroche FR" class="field col-span-2">
+      <input name="tag_en" placeholder="tagline EN" class="field col-span-2">
+      <textarea name="desc_fr" rows="2" placeholder="description FR" class="field col-span-2 resize-none"></textarea>
+      <textarea name="desc_en" rows="2" placeholder="description EN" class="field col-span-2 resize-none"></textarea>
+    </div>
+    <button class="btn-primary w-full mt-6">Save</button>
+  </form>
+</div>
+<div id="footer"></div>
+
+<script>
+  /* ⚠️ Démo : ce code est visible dans le fichier. Pour un vrai site, il faut un serveur. */
+  const ADMIN_CODE = "aurelia-admin-2026";
+  const TABS = ["stats", "cars", "testdrives", "contacts", "services", "orders"];
+  let tab = "stats";
+  const $ = (id) => document.getElementById(id);
+  const modal = bindModal("modal");
+  $("brand-list").innerHTML = BRANDS.map((b) => `<option value="${esc(b.name)}">`).join("");
+
+  function unlock() { $("gate").classList.add("hidden"); $("panel").classList.remove("hidden"); render(); }
+  if (sessionStorage.getItem("aurelia_admin") === "1") unlock();
+  $("gate-form").addEventListener("submit", (e) => {
+    e.preventDefault();
+    if ($("code").value === ADMIN_CODE) { sessionStorage.setItem("aurelia_admin", "1"); unlock(); }
+    else toast("Code invalide", true);
+  });
+
+  const table = (heads, rows) => `<div class="border border-neutral-900 bg-[#0c0c0c] overflow-x-auto"><table class="w-full text-left text-sm">
+    <thead><tr class="bg-[#080808]">${heads.map((h) => `<th class="overline p-4">${h}</th>`).join("")}</tr></thead>
+    <tbody>${rows.join("") || `<tr><td class="p-6 text-neutral-500" colspan="${heads.length}">—</td></tr>`}</tbody></table></div>`;
+  const td = (v, cls = "") => `<td class="p-4 ${cls}">${esc(v)}</td>`;
+
+  function render() {
+    $("tabs").innerHTML = TABS.map((k) => `<button data-tab="${k}" class="px-5 py-3 text-xs tracking-[0.2em] uppercase font-mono border-0 border-b-2 bg-transparent cursor-pointer ${tab === k ? "border-[#E50000] text-white" : "border-transparent text-neutral-500 hover:text-white"}" style="border-style:solid">${k}</button>`).join("");
+    const c = $("content");
+    if (tab === "stats") {
+      const counts = { cars: getCars().length, testdrives: Store.get("testdrives", []).length, contacts: Store.get("contacts", []).length, services: Store.get("services", []).length, orders: Store.get("orders", []).length };
+      c.innerHTML = `<div class="grid grid-cols-2 md:grid-cols-5 gap-4">${Object.entries(counts).map(([k, v]) => `<div class="border border-neutral-900 bg-[#0c0c0c] p-6"><p class="overline">${k}</p><p class="font-display text-4xl mt-3">${v}</p></div>`).join("")}</div>
+        <p class="text-neutral-500 text-sm mt-6">${BRANDS.length} marques au catalogue · ${new Set(getCars().map((x) => x.brand)).size} avec au moins un modèle</p>
+        <div class="mt-6 flex flex-col items-start gap-3">
+          <button id="export" class="overline hover:text-white bg-transparent border-0 cursor-pointer">→ Exporter toutes les données (JSON)</button>
+          <button id="clear-photos" class="overline hover:text-white bg-transparent border-0 cursor-pointer">→ Vider le cache des photos</button>
+          <button id="reset-data" class="overline hover:text-white bg-transparent border-0 cursor-pointer">→ Réinitialiser toutes les données</button></div>`;
+    }
+    if (tab === "cars") {
+      c.innerHTML = `<div class="flex justify-end mb-4"><button id="add" class="btn-primary">+ ${t("ad.add")}</button></div>` +
+        table(["Brand", "Model", "Type", "Price", "HP", "★", ""], getCars().map((x) => `<tr class="border-t border-neutral-900">${td(x.brand)}${td(x.model)}${td(x.type, "font-mono text-xs")}${td(fmtPrice(x.price), "font-mono")}${td(x.hp, "font-mono")}<td class="p-4"><button data-feat="${x.id}" title="Accueil" class="bg-transparent border-0 cursor-pointer ${x.featured ? "text-[#E50000]" : "text-neutral-700 hover:text-white"}">★</button></td><td class="p-4 text-right"><button data-del="${x.id}" class="text-neutral-500 hover:text-[#E50000] bg-transparent border-0 cursor-pointer">🗑</button></td></tr>`));
+    }
+    if (tab === "testdrives") c.innerHTML = table(["Date", "Time", "Car", "Name", "Email", "Phone"], Store.get("testdrives", []).map((x) => `<tr class="border-t border-neutral-900">${td(x.date, "font-mono text-xs")}${td(x.time, "font-mono text-xs")}${td(x.car_name)}${td(x.full_name)}${td(x.email, "text-neutral-400")}${td(x.phone, "text-neutral-400")}</tr>`));
+    if (tab === "contacts") c.innerHTML = table(["Name", "Email", "Subject", "Message"], Store.get("contacts", []).map((x) => `<tr class="border-t border-neutral-900">${td(x.full_name)}${td(x.email, "text-neutral-400")}${td(x.subject)}${td(x.message, "text-neutral-400 max-w-md")}</tr>`));
+    if (tab === "services") c.innerHTML = table(["Type", "Name", "Email", "Phone", "Message"], Store.get("services", []).map((x) => `<tr class="border-t border-neutral-900">${td(x.service_type, "font-mono text-xs")}${td(x.full_name)}${td(x.email, "text-neutral-400")}${td(x.phone, "text-neutral-400")}${td(x.message, "text-neutral-400 max-w-md")}</tr>`));
+    if (tab === "orders") c.innerHTML = table(["Car", "Color", "Wheel", "Interior", "Total", "Customer"], Store.get("orders", []).map((x) => `<tr class="border-t border-neutral-900">${td(x.car_name)}${td(x.color)}${td(x.wheel)}${td(x.interior)}${td(fmtPrice(x.total), "font-mono")}${td(x.full_name + " · " + x.email, "text-neutral-400")}</tr>`));
+  }
+
+  document.addEventListener("click", (e) => {
+    const tb = e.target.closest("[data-tab]"); if (tb) { tab = tb.dataset.tab; render(); }
+    const del = e.target.closest("[data-del]");
+    if (del && confirm("Supprimer ?")) { Store.set("cars", getCars().filter((x) => x.id !== del.dataset.del)); toast("Deleted"); render(); }
+    const ft = e.target.closest("[data-feat]");
+    if (ft) { Store.set("cars", getCars().map((x) => (x.id === ft.dataset.feat ? { ...x, featured: !x.featured } : x))); render(); }
+    if (e.target.closest("#add")) modal.open();
+    if (e.target.closest("#clear-photos")) { Photos.clear(); toast("Cache des photos vidé"); }
+    if (e.target.closest("#export")) {
+      const dump = {}; Object.keys(localStorage).filter((k) => k.startsWith("aurelia_") && k !== "aurelia_pc").forEach((k) => (dump[k] = localStorage.getItem(k)));
+      const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([JSON.stringify(dump, null, 2)], { type: "application/json" })); a.download = "aurelia-data.json"; a.click();
+    }
+    if (e.target.closest("#reset-data") && confirm("Tout réinitialiser ?")) {
+      Object.keys(localStorage).filter((k) => k.startsWith("aurelia_") && !["aurelia_lang", "aurelia_theme"].includes(k)).forEach((k) => localStorage.removeItem(k)); render();
+    }
+  });
+  $("close").addEventListener("click", modal.close);
+  $("add-form").addEventListener("submit", (e) => {
+    e.preventDefault();
+    const f = Object.fromEntries(new FormData(e.target));
+    const photos = {}; ["main", "front", "side", "rear", "top", "interior", "engine"].forEach((k) => { if (f["p_" + k]) photos[k] = f["p_" + k].trim(); });
+    const car = {
+      id: (f.brand + "-" + f.model).toLowerCase().replace(/[^a-z0-9]+/g, "-") + "-" + Date.now().toString(36).slice(-3),
+      brand: f.brand, model: f.model, type: f.type, price: +f.price, hp: +f.hp, top: +f.top, acc: +f.acc,
+      range: f.range ? +f.range : null, featured: !!f.featured, photos,
+      tag: { fr: f.tag_fr, en: f.tag_en || f.tag_fr }, desc: { fr: f.desc_fr, en: f.desc_en || f.desc_fr },
+    };
+    Store.set("cars", [...getCars(), car]); modal.close(); e.target.reset(); toast("Created"); render();
+  });
+</script>
+</body>
+</html>
