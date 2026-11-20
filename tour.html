@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AURELIA — Visite 360°</title>
+<link href="https://api.fontshare.com/v2/css?f[]=cabinet-grotesk@300,400,500,700&f[]=jetbrains-mono@400,500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="style.css">
+<script src="data.js"></script><script src="common.js"></script>
+</head>
+<body class="bg-[#050505] text-white">
+<div id="nav"></div>
+<main class="pt-32 pb-8 bg-[#050505] min-h-screen">
+  <div class="container-custom">
+    <p class="overline">/ <span data-i18n="tour.title"></span></p>
+    <div class="flex items-end justify-between gap-6 flex-wrap mt-4">
+      <h1 class="font-display text-5xl sm:text-6xl lg:text-7xl tracking-tighter font-light" data-i18n="tour.title"></h1>
+      <div><p class="overline mb-2" data-i18n="td.car"></p><select id="car-select" class="bg-[#111] border border-neutral-800 px-4 py-2 text-sm text-white min-w-[260px]"></select></div>
+    </div>
+    <p class="text-neutral-400 mt-3" data-i18n="tour.sub"></p>
+
+    <div id="pills" class="mt-8 flex flex-wrap gap-2"></div>
+
+    <div class="mt-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
+      <div id="viewer" class="lg:col-span-8 relative aspect-[16/10] bg-[#0c0c0c] border border-neutral-900 overflow-hidden cursor-grab select-none">
+        <img id="view-img" alt="" class="absolute inset-0 w-full h-full object-cover pointer-events-none" draggable="false">
+        <button id="prev" class="on-image absolute left-4 top-1/2 -translate-y-1/2 w-12 h-12 bg-black/50 backdrop-blur-md border border-white/15 text-white hover:bg-black/80 z-10 text-xl">‹</button>
+        <button id="next" class="on-image absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 bg-black/50 backdrop-blur-md border border-white/15 text-white hover:bg-black/80 z-10 text-xl">›</button>
+        <div id="badge-l" class="on-image absolute top-4 left-4 px-3 py-1.5 bg-black/60 backdrop-blur-md border border-white/10 font-mono text-[10px] tracking-[0.2em] uppercase text-white"></div>
+        <div id="badge-r" class="on-image absolute top-4 right-4 px-3 py-1.5 bg-black/60 backdrop-blur-md border border-white/10 font-mono text-[10px] tracking-[0.2em] uppercase text-white"></div>
+      </div>
+
+      <div class="lg:col-span-4 space-y-3">
+        <div class="border border-neutral-900 bg-[#0c0c0c] p-6">
+          <p class="overline" data-i18n="tour.dash"></p>
+          <h3 id="car-name" class="font-display text-2xl mt-2"></h3>
+          <div class="mt-6 grid grid-cols-2 gap-3">
+            <div class="border border-neutral-900 bg-[#080808] p-4"><p class="overline">Speed</p>
+              <p class="font-display text-3xl mt-2"><span id="speed">0</span><span class="text-xs text-neutral-500 ml-1">km/h</span></p>
+              <div class="mt-2 h-0.5 bg-neutral-900"><div id="speed-bar" class="h-full bg-[#E50000]" style="width:0"></div></div></div>
+            <div class="border border-neutral-900 bg-[#080808] p-4"><p class="overline">RPM</p>
+              <p class="font-display text-3xl mt-2"><span id="rpm">0</span></p>
+              <div class="mt-2 h-0.5 bg-neutral-900"><div id="rpm-bar" class="h-full bg-[#E50000]" style="width:0"></div></div></div>
+          </div>
+          <button id="engine" class="mt-5 w-full py-3 text-xs tracking-[0.2em] uppercase bg-[#E50000] text-white hover:bg-[#FF1A1A] border-0 cursor-pointer"></button>
+        </div>
+        <div id="specs" class="grid grid-cols-2 gap-3"></div>
+      </div>
+    </div>
+
+    <div id="thumbs" class="mt-6 grid grid-cols-3 md:grid-cols-6 gap-2"></div>
+  </div>
+</main>
+<div id="footer"></div>
+
+<script>
+  const KEYS = ["exterior", "profile", "back", "top", "interior", "engine"];
+  const cars = getCars();
+  let car = cars[0], viewKey = "exterior";
+  const $ = (id) => document.getElementById(id);
+
+  function views() {
+    const pool = [car.img, ...(car.gallery || [])].filter((v, i, a) => v && a.indexOf(v) === i);
+    while (pool.length < 4) pool.push(pool[0]);
+    return { exterior: pool[0], profile: pool[1], back: pool[2], top: pool[3], interior: IMG.interior, engine: IMG.engine };
+  }
+  const labels = () => t("tour.views").split(",");
+
+  function render() {
+    const v = views(), L = labels();
+    $("car-select").innerHTML = cars.map((c) => `<option value="${c.id}" ${c.id === car.id ? "selected" : ""}>${c.brand} ${c.model}</option>`).join("");
+    $("car-name").textContent = `${car.brand} ${car.model}`;
+    $("pills").innerHTML = KEYS.map((k, i) => `<button data-key="${k}" class="chip ${viewKey === k ? "active" : ""}">${L[i]}</button>`).join("");
+    $("thumbs").innerHTML = KEYS.map((k, i) => `<button data-key="${k}" class="relative aspect-[4/3] overflow-hidden border-2 p-0 bg-transparent cursor-pointer transition-all ${viewKey === k ? "border-[#E50000]" : "border-transparent opacity-50 hover:opacity-100"}">
+      <img src="${v[k]}" alt="" loading="lazy" class="absolute inset-0 w-full h-full object-cover"><span class="on-image absolute bottom-1 left-1 px-1.5 py-0.5 bg-black/70 text-white text-[9px] tracking-[0.15em] uppercase font-mono">${L[i]}</span></button>`).join("");
+    const kmh = (car.top || 0);
+    $("specs").innerHTML = [["Power", car.hp + " HP"], ["Top", kmh + " km/h"], ["0–100", car.acc + " s"], [car.range ? "Range" : "ICE", car.range ? car.range + " km" : "∞"]]
+      .map(([l, val]) => `<div class="border border-neutral-900 bg-[#0c0c0c] p-4"><p class="overline">${l}</p><p class="font-display text-lg mt-1">${val}</p></div>`).join("");
+    showView();
+    $("engine").textContent = running ? t("tour.stop") : t("tour.start");
+  }
+  function showView() {
+    const img = $("view-img");
+    img.style.animation = "none"; void img.offsetWidth;
+    img.src = views()[viewKey];
+    img.style.animation = "carReveal .7s cubic-bezier(.22,1,.36,1) both";
+    const i = KEYS.indexOf(viewKey);
+    $("badge-l").textContent = `${car.brand} · ${labels()[i]}`;
+    $("badge-r").textContent = `${i + 1} / ${KEYS.length}`;
+    document.querySelectorAll("[data-key]").forEach((b) => {
+      const on = b.dataset.key === viewKey;
+      if (b.classList.contains("chip")) b.classList.toggle("active", on);
+      else { b.classList.toggle("border-[#E50000]", on); b.classList.toggle("border-transparent", !on); b.classList.toggle("opacity-50", !on); }
+    });
+  }
+  const cycle = (d) => { viewKey = KEYS[(KEYS.indexOf(viewKey) + d + KEYS.length) % KEYS.length]; showView(); };
+
+  document.addEventListener("click", (e) => { const b = e.target.closest("[data-key]"); if (b) { viewKey = b.dataset.key; showView(); } });
+  $("prev").addEventListener("click", () => cycle(-1));
+  $("next").addEventListener("click", () => cycle(1));
+  document.addEventListener("keydown", (e) => { if (e.key === "ArrowLeft") cycle(-1); if (e.key === "ArrowRight") cycle(1); });
+
+  /* Glisser pour tourner */
+  let drag = { x: 0, on: false };
+  const vw = $("viewer");
+  const start = (x) => (drag = { x, on: true });
+  const move = (x) => { if (!drag.on) return; const dx = x - drag.x; if (Math.abs(dx) > 40) { cycle(dx > 0 ? -1 : 1); drag.x = x; } };
+  const end = () => (drag.on = false);
+  vw.addEventListener("mousedown", (e) => start(e.clientX));
+  window.addEventListener("mousemove", (e) => move(e.clientX));
+  window.addEventListener("mouseup", end);
+  vw.addEventListener("touchstart", (e) => start(e.touches[0].clientX), { passive: true });
+  vw.addEventListener("touchmove", (e) => move(e.touches[0].clientX), { passive: true });
+  vw.addEventListener("touchend", end);
+
+  /* Moteur synthétisé (Web Audio) + tableau de bord */
+  let running = false, ctx, nodes, raf;
+  function startEngine() {
+    if (running) return;
+    ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const o1 = ctx.createOscillator(), o2 = ctx.createOscillator(), lfo = ctx.createOscillator();
+    o1.type = o2.type = "sawtooth"; lfo.type = "sine"; lfo.frequency.value = 6;
+    const lp = ctx.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 320; lp.Q.value = 8;
+    const gain = ctx.createGain(); gain.gain.value = 0;
+    const lfoGain = ctx.createGain(); lfoGain.gain.value = 40;
+    lfo.connect(lfoGain).connect(lp.frequency);
+    o1.connect(lp); o2.connect(lp); lp.connect(gain).connect(ctx.destination);
+    o1.start(); o2.start(); lfo.start();
+    gain.gain.linearRampToValueAtTime(0.18, ctx.currentTime + 0.8);
+    nodes = { o1, o2, lfo, gain };
+    running = true; $("engine").textContent = t("tour.stop");
+    let r = 800, s = 0;
+    const loop = () => {
+      const target = 4500 + Math.sin(Date.now() / 600) * 1500;
+      r += (target - r) * 0.04;
+      s += ((r / 8000) * (car.top || 250) - s) * 0.06;
+      $("rpm").textContent = Math.round(r); $("speed").textContent = Math.round(Math.max(0, s));
+      $("rpm-bar").style.width = Math.min(100, r / 80) + "%"; $("speed-bar").style.width = Math.min(100, (s / (car.top || 250)) * 100) + "%";
+      const f = 40 + (r / 8000) * 180;
+      o1.frequency.setTargetAtTime(f, ctx.currentTime, 0.05); o2.frequency.setTargetAtTime(f * 1.04, ctx.currentTime, 0.05);
+      raf = requestAnimationFrame(loop);
+    };
+    loop();
+  }
+  function stopEngine() {
+    if (!running) return;
+    cancelAnimationFrame(raf);
+    const { o1, o2, lfo, gain } = nodes, c = ctx;
+    gain.gain.linearRampToValueAtTime(0, c.currentTime + 0.6);
+    setTimeout(() => { try { o1.stop(); o2.stop(); lfo.stop(); c.close(); } catch {} }, 700);
+    running = false;
+    ["rpm", "speed"].forEach((k) => ($(k).textContent = 0)); $("rpm-bar").style.width = $("speed-bar").style.width = "0";
+    $("engine").textContent = t("tour.start");
+  }
+  $("engine").addEventListener("click", () => (running ? stopEngine() : startEngine()));
+  $("car-select").addEventListener("change", (e) => { stopEngine(); car = getCar(e.target.value); render(); });
+  window.addEventListener("pagehide", stopEngine);
+
+  render(); document.addEventListener("langchange", render);
+</script>
+</body>
+</html>

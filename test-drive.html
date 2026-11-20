@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AURELIA — Réserver un essai</title>
+<link href="https://api.fontshare.com/v2/css?f[]=cabinet-grotesk@300,400,500,700&f[]=jetbrains-mono@400,500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="style.css">
+<script src="data.js"></script><script src="common.js"></script>
+</head>
+<body class="bg-[#050505] text-white">
+<div id="nav"></div>
+<main class="pt-32 pb-8 bg-[#050505] min-h-screen">
+  <div class="container-custom">
+    <p class="overline">/ <span data-i18n="nav.book"></span></p>
+    <h1 class="font-display text-5xl sm:text-6xl lg:text-7xl tracking-tighter font-light mt-4" data-i18n="td.title"></h1>
+    <p class="text-neutral-400 mt-3 max-w-xl" data-i18n="td.sub"></p>
+
+    <div id="success" class="hidden mt-16 max-w-xl border border-[#E50000] bg-[#E50000]/5 p-10">
+      <p class="overline text-[#E50000]">✓ confirmed</p>
+      <h2 class="font-display text-3xl mt-3" data-i18n="td.ok"></h2>
+    </div>
+
+    <form id="form" class="mt-14 grid grid-cols-1 lg:grid-cols-12 gap-10">
+      <div class="lg:col-span-5 space-y-8">
+        <div><p class="overline mb-3" data-i18n="td.car"></p><select id="car" name="car" class="field"></select></div>
+        <div><p class="overline mb-3" data-i18n="f.name"></p><input name="full_name" required class="field"></div>
+        <div class="grid grid-cols-2 gap-6">
+          <div><p class="overline mb-3" data-i18n="f.email"></p><input name="email" type="email" required class="field"></div>
+          <div><p class="overline mb-3" data-i18n="f.phone"></p><input name="phone" required class="field"></div>
+        </div>
+        <div><p class="overline mb-3" data-i18n="f.notes"></p><textarea name="notes" rows="3" class="field resize-none"></textarea></div>
+      </div>
+      <div class="lg:col-span-7 grid grid-cols-1 md:grid-cols-2 gap-6 content-start">
+        <div>
+          <p class="overline mb-3" data-i18n="td.date"></p>
+          <input id="date" type="date" class="field" style="color-scheme:dark">
+        </div>
+        <div>
+          <p class="overline mb-3" data-i18n="td.time"></p>
+          <div id="times" class="grid grid-cols-2 gap-2"></div>
+          <button class="btn-primary w-full mt-8" data-i18n="td.submit"></button>
+        </div>
+      </div>
+    </form>
+  </div>
+</main>
+<div id="footer"></div>
+
+<script>
+  const TIMES = ["10:00", "11:30", "14:00", "15:30", "17:00"];
+  let time = "";
+  const cars = getCars();
+  const pre = new URLSearchParams(location.search).get("car");
+  const $ = (id) => document.getElementById(id);
+
+  $("car").innerHTML = cars.map((c) => `<option value="${c.id}" ${c.id === pre ? "selected" : ""}>${c.brand} ${c.model}</option>`).join("");
+  const today = new Date().toISOString().slice(0, 10);
+  $("date").min = today;
+
+  function renderTimes() {
+    $("times").innerHTML = TIMES.map((tm) => `<button type="button" data-time="${tm}" class="py-3 border text-sm font-mono ${time === tm ? "border-white bg-white text-black" : "border-neutral-800 text-neutral-300 hover:border-neutral-600"}">${tm}</button>`).join("");
+  }
+  $("times").addEventListener("click", (e) => { const b = e.target.closest("[data-time]"); if (b) { time = b.dataset.time; renderTimes(); } });
+  renderTimes();
+
+  $("form").addEventListener("submit", (e) => {
+    e.preventDefault();
+    const date = $("date").value;
+    if (!date || !time) return toast(t("td.pick"), true);
+    const f = Object.fromEntries(new FormData(e.target));
+    const car = getCar(f.car);
+    Store.push("testdrives", { car_name: car ? `${car.brand} ${car.model}` : "", date, time, full_name: f.full_name, email: f.email, phone: f.phone, notes: f.notes });
+    e.target.classList.add("hidden"); $("success").classList.remove("hidden"); toast(t("td.ok"));
+  });
+</script>
+</body>
+</html>
