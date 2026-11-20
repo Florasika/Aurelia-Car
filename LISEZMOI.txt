@@ -1,5 +1,0 @@
-AURELIA — site vitrine auto en HTML / CSS / JS pur
-Ouvrir index.html dans le navigateur (connexion internet requise pour polices, Tailwind CDN et images).
-
-Fichiers : data.js (voitures, options, traductions) · common.js (nav, langue, thème) · style.css · une page .html par section.
-Les commandes, essais et messages sont gardés dans le localStorage du navigateur (voir /admin.html, code : aurelia-admin-2026).
